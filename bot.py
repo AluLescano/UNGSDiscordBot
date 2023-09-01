@@ -9,7 +9,8 @@ from discord.ext import commands
 from datetime import datetime
 
 #Cargo las variables desde el archivo .env
-load_dotenv("bot.env")
+env_directorio = "bot.env"
+load_dotenv(env_directorio)
 
 #Accedo a esas variables usando os.environ.get()
 TOKEN = os.environ.get('DISCORD_TOKEN')
@@ -89,6 +90,9 @@ async def revisar_actualizacion_calendario():
                         await canal.send(mensaje)
                     else:
                         print(f'El link almacenado tiene la última versión.')
+                        fecha_actual = datetime.now()
+                        
+                        formatofecha = fecha_actual.strftime("%d-%m-%Y %H:%M:%S")
                         set_key('bot.env', 'FECHA_GUARDADA', formatofecha)  # Guardo el valor en el archivo .env
                         await canal.send(f"La última versión del calendario es la siguiente: {LINK_CALENDARIO}.")
             else:
