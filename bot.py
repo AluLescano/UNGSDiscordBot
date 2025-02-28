@@ -13,11 +13,24 @@ env_directorio = "bot.env"
 load_dotenv(env_directorio)
 
 TOKEN = os.getenv('DISCORD_TOKEN')
+
+#Requerido Apartado Materias y Finales
 LINK_MATERIAS = os.getenv('LINK_MATERIAS')
 LINK_FINALES = os.getenv('LINK_FINALES')
 FECHA_MATERIAS = os.getenv('MATERIAS_FECHA_GUARDADA')
 FECHA_FINALES = os.getenv('FINALES_FECHA_GUARDADA')
+
 UNGS_LINK = 'https://www.ungs.edu.ar/estudiar-en-la-ungs/inscripciones/oferta-academica-mesas-de-examen'
+
+#Requerido Apartado Contactos
+BEDELIA= os.getenv('BEDELIA')
+SEC_GRAL_INFORMES= os.getenv('SEC_GRAL_INFORMES')
+SEC_GRAL_WHATSAPP= os.getenv('SEC_GRAL_WHATSAPP')
+BIENESTAR= os.getenv('BIENESTAR')
+LIBRERIA= os.getenv('LIBRERIA')
+BIBLIOTECA= os.getenv('BIBLIOTECA')
+FOTOCOPIA_EMAIL= os.getenv('FOTOCOPIA_EMAIL')
+FOTOCOPIA_WSP= os.getenv('FOTOCOPIA_WSP')
 
 if TOKEN is None:
     raise ValueError("DISCORD_TOKEN no encontrado en archivo .env.")
@@ -49,7 +62,7 @@ def get_channel_by_id(client, id_canal):
 async def fetch_pdf_link(keyword):
     global UNGS_LINK
     try:
-        response = requests.get(UNGS_LINK)
+        response = requests.get(UNGS_LINK, timeout=60)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -72,8 +85,8 @@ async def chequearOferta(keyword: str):
     global LINK_MATERIAS, FECHA_MATERIAS, LINK_FINALES, FECHA_FINALES
     
     links = {
-        "Publicacion-Materias": {"link": LINK_MATERIAS, "fecha": FECHA_MATERIAS, "env_key": "LINK_MATERIAS", "date_key": "MATERIAS_FECHA_GUARDADA"},
-        "MESAS-DE-EXAMEN": {"link": LINK_FINALES, "fecha": FECHA_FINALES, "env_key": "LINK_FINALES", "date_key": "FINALES_FECHA_GUARDADA"}
+        "Publicacion-Materias": {"link": LINK_MATERIAS, "fecha": FECHA_MATERIAS},
+        "MESAS-DE-EXAMEN": {"link": LINK_FINALES, "fecha": FECHA_FINALES}
     }
     
     if keyword not in links:
@@ -102,8 +115,8 @@ async def chequearOferta(keyword: str):
             fecha_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             link_info["fecha"] = fecha_actual
 
-            set_key('bot.env', link_info["env_key"], nuevoLink)
-            set_key('bot.env', link_info["date_key"], fecha_actual)
+            set_key('bot.env', "LINK_MATERIAS" if keyword == "Publicacion-Materias" else "LINK_FINALES", nuevoLink)
+            set_key('bot.env', "MATERIAS_FECHA_GUARDADA" if keyword == "Publicacion-Materias" else "FINALES_FECHA_GUARDADA", fecha_actual)
 
             print(f'El link almacenado era distinto al de la página web, el nuevo link se ha almacenado!')
             await canal.send(mensaje)
@@ -112,6 +125,9 @@ async def chequearOferta(keyword: str):
     else:
         print(f'El link almacenado tiene la última versión.')
         if canal:
+            fecha_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            link_info["fecha"] = fecha_actual
+            set_key('bot.env', "MATERIAS_FECHA_GUARDADA" if keyword == "Publicacion-Materias" else "FINALES_FECHA_GUARDADA", fecha_actual)
             await canal.send(f'El link almacenado tiene la última versión. Usa /ultimoLink para ver los links a las materias.')
     
 @bot.event
@@ -122,9 +138,12 @@ async def on_ready():
         print(f"Synced {len(synced)} comandos sincronizados")
     except Exception as e:
         print(f" Error al sincronizar comandos: {e}")
-        
-    await chequearOferta("Publicacion-Materias")
-    await chequearOferta("MESAS-DE-EXAMEN")
+    try:
+        await chequearOferta("Publicacion-Materias")
+        await chequearOferta("MESAS-DE-EXAMEN")
+    except Exception as e:
+        print(f"Error al chequear oferta: {e}")
+
 
 @bot.event
 async def on_member_join(member):
@@ -145,8 +164,12 @@ async def chequearOfertaAcademica(interaction: discord.Interaction):
 async def chequearFinal(interaction: discord.Interaction):
     await chequearOferta("MESAS-DE-EXAMEN")
     await interaction.response.send_message("Chequeo de calendario de Finales exitoso.", ephemeral=True)
+    
+@bot.tree.command(name="contactos", description="Te muestra el modo de contacto para distintas cosas en la UNGS!")
+async def infoContacto(interaction: discord.Interaction):
+    await interaction.response.send_message(f'{interaction.user.mention} aquí tienes la info de contacto!\nBedelía: {BEDELIA}\nSecretaria General:\nInformes {SEC_GRAL_INFORMES}\nWhatsapp (Asistente Virtual) {SEC_GRAL_WHATSAPP}\nBienestar Universitario: {BIENESTAR}\nLibrería: {LIBRERIA}\nBiblioteca: {BIBLIOTECA}\nFotocopias: {FOTOCOPIA_EMAIL} --- Whatsapp {FOTOCOPIA_WSP}.', ephemeral=True)
 
-@bot.tree.command(name="ultimolink", description="¡Te muestra el último link que tiene guardado al bot sin pingear a todos en el server!")
+@bot.tree.command(name="ultimolink", description="Te muestra el último link que tiene guardado al bot sin pinguear a todos en el server!")
 async def ultimoRegistro(interaction: discord.Interaction):
     await interaction.response.send_message(f'{interaction.user.mention} la última versión que poseo de la Oferta Académica es del: {FECHA_MATERIAS}, y el link es: {LINK_MATERIAS}.\nLa última versión que poseo de las Mesas de Examen es: {FECHA_FINALES}, y el link es: {LINK_FINALES}.')
 
